@@ -3,10 +3,9 @@
 ## a. Thông tin cá nhân  
 - Họ tên: Nguyễn Thanh Quyền
 - Mã sinh viên: 21045131
-- Stt: 51
-
+- Stt: 50
 ## b. Mô tả project 
-
+Blog đơn giản có hỗ trợ bình luận, được xây dựng với Flask cho backend. Blog cho phép người dùng đọc bài viết, bình luận và có hệ thống phân quyền user với ba cấp độ: Viewer, Collaborator và Editor.
 ## c. Hướng dẫn cài đặt và chạy
 ### Cài đặt  
 ```bash
