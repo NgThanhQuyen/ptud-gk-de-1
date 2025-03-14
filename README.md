@@ -3,6 +3,7 @@
 ## a. Thông tin cá nhân  
 - Họ tên: Nguyễn Thanh Quyền
 - Mã sinh viên: 21045131
+- Stt: 51
 
 ## b. Mô tả project 
 
