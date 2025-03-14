@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block title %} HomePage {% endblock %}
+
+{% block content %}
+<h1 align="center">Tasks</h1>
+<h4>Hello, {{ current_user.user_name }}!</h4>
+<form id="addTaskForm">
+    <!-- Input ẩn để lưu taskId khi chỉnh sửa, nếu rỗng thì là thêm mới -->
+    <input type="hidden" name="taskId" id="taskId" value="">
+    
+    <input type="text" name="title" id="title" class="form-control" placeholder="Task Title" required>
+    <textarea name="body" id="body" class="form-control" placeholder="Task Details" required style="height: 150px;"></textarea>
+    
+    <!-- Thêm input cho URL hình ảnh -->
+    <div class="form-group mt-3">
+        <label for="imageUrl">Image URL (optional):</label>
+        <input type="text" name="imageUrl" id="imageUrl" class="form-control" placeholder="Enter image URL">
+        <small class="form-text text-muted">You can use https://picsum.photos/ for random images</small>
+    </div>
+    
+    <button style="margin-top: 10px;" type="submit" class="btn btn-primary" id="submitTaskButton">Add Task</button>
+</form>
+
+
+<ul class="list-group list-group-flush" id="tasks">
+    {% for task in pagination.items %}
+    <li class="list-group-item" id="task-{{ task.id }}">
+        <div class="d-flex justify-content-between align-items-center" style="font-size: 20px;">
+            <div>
+                <input type="checkbox" name="task_ids" value="{{ task.id }}" style="width: 20px; height: 20px; margin-right: 10px;">
+                <strong id="task-title-{{ task.id }}" style="font-size: 27px; font-weight: bold; color: #007bff;">{{ task.title }}</strong>
+                <br> 
+                <span id="task-body-{{ task.id }}" style="margin-left: 35px; display: inline-block;">{{ task.body }}</span>
+                {% if task.image_url %}
+                <div class="mt-2" style="margin-left: 35px;">
+                    <img src="{{ task.image_url }}" alt="Task Image" class="img-fluid" style="max-width: 500px; border-radius: 5px;">
+                </div>
+                {% endif %}
+                <div>
+                    <small class="text-muted">
+                        Time: {{ (task.date + timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S  (UTC+7)') }}
+                    </small>
+                </div>
+            </div>
+            <button type="button" class="btn btn-sm btn-warning" onClick="editTask({{ task.id }})">Edit</button>
+        </div>
+        
+        <!-- Comments Section -->
+        <div class="comments-section mt-3" style="margin-left: 35px;">
+            <h6>Comments:</h6>
+            <div class="comments-list" id="comments-{{ task.id }}">
+                {% for comment in task.comments %}
+                <div class="comment" id="comment-{{ comment.id }}">
+                    <strong>{{ comment.user.user_name }}</strong>
+                    <small class="text-muted">{{ (comment.date + timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S') }}</small>
+                    <p>{{ comment.content }}</p>
+                    {% if comment.user_id == current_user.id or current_user.is_admin %}
+                    <button class="btn btn-sm btn-danger" onclick="deleteComment({{ comment.id }})">Delete</button>
+                    {% endif %}
+                    <hr>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="add-comment-form">
+                <textarea class="form-control comment-input" placeholder="Add a comment..." rows="2"></textarea>
+                <button class="btn btn-sm btn-primary mt-2" onclick="addComment({{ task.id }})">Add Comment</button>
+            </div>
+        </div>
+    </li>    
+    {% endfor %}
+</ul>
+
+<!-- Điều hướng phân trang -->
+<nav aria-label="Page navigation" style="margin-top: 20px;">
+    <ul class="pagination">
+        {% if pagination.has_prev %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('views.home', page=pagination.prev_num) }}">Trước</a>
+            </li>
+        {% endif %}
+
+        {% for num in pagination.iter_pages(left_edge=1, left_current=2, right_current=2, right_edge=1) %}
+            {% if num %}
+                <li class="page-item {% if num == pagination.page %}active{% endif %}">
+                    <a class="page-link" href="{{ url_for('views.home', page=num) }}">{{ num }}</a>
+                </li>
+            {% else %}
+                <li class="page-item disabled"><span class="page-link">...</span></li>
+            {% endif %}
+        {% endfor %}
+
+        {% if pagination.has_next %}
+            <li class="page-item">
+                <a class="page-link" href="{{ url_for('views.home', page=pagination.next_num) }}">Tiếp</a>
+            </li>
+        {% endif %}
+    </ul>
+</nav>
+
+
+
+<form method="POST">
+    <div>
+        <button style="margin-top: 10px;" type="button" class="btn btn-secondary" 
+                onclick="toggleSelectAllPage()" style="margin-bottom: 10px;">Select All
+        </button>
+        <br>
+        <button style="margin-top: 10px; margin-bottom: 20px;" type="button" class="btn btn-danger" 
+                onclick="deleteTasks()">Delete Selected Tasks
+        </button>
+
+        <button style="margin-top: 10px; margin-left: 50px; margin-bottom: 20px;" type="button" class="btn btn-danger" 
+            onclick="toggleSelectAllGlobal()" style="margin-bottom: 10px;">Delete All Tasks
+        </button>
+        <br>
+    </div>
+</form>
+
+<script>
+    // Sự kiện submit của form addTaskForm
+    document.getElementById("addTaskForm").addEventListener("submit", function(e) {
+        e.preventDefault();
+        const taskId = document.getElementById("taskId").value;
+        const title = document.getElementById("title").value;
+        const body = document.getElementById("body").value;
+        const imageUrl = document.getElementById("imageUrl").value;  // Lấy URL hình ảnh
+
+        if (taskId) {
+            // Cập nhật task
+            fetch(`/update-task/${taskId}`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    title: title,
+                    body: body,
+                    image_url: imageUrl  // Thêm URL hình ảnh vào request
+                }),
+            })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    document.getElementById(`task-title-${taskId}`).textContent = data.title;
+                    document.getElementById(`task-body-${taskId}`).textContent = data.body;
+                    // Cập nhật hình ảnh nếu có
+                    const taskElement = document.getElementById(`task-${taskId}`);
+                    let imageContainer = taskElement.querySelector('.img-fluid').parentElement;
+                    if (data.image_url) {
+                        if (!imageContainer) {
+                            imageContainer = document.createElement('div');
+                            imageContainer.className = 'mt-2';
+                            imageContainer.style.marginLeft = '35px';
+                            taskElement.querySelector('.task-body').after(imageContainer);
+                        }
+                        imageContainer.innerHTML = `<img src="${data.image_url}" alt="Task Image" class="img-fluid" style="max-width: 500px; border-radius: 5px;">`;
+                    } else if (imageContainer) {
+                        imageContainer.remove();
+                    }
+                    document.getElementById("addTaskForm").reset();
+                    document.getElementById("taskId").value = "";
+                    document.getElementById("submitTaskButton").textContent = "Add Task";
+                } else {
+                    alert(data.message);
+                }
+            });
+        } else {
+            // Thêm task mới
+            fetch("/add-task", {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json",
+                },
+                body: JSON.stringify({
+                    title: title,
+                    body: body,
+                    image_url: imageUrl  // Thêm URL hình ảnh vào request
+                }),
+            })
+            .then((response) => response.json())
+            .then((data) => {
+                if (data.success) {
+                    const tasksList = document.getElementById("tasks");
+                    const newTask = document.createElement("li");
+                    newTask.className = "list-group-item";
+                    newTask.id = `task-${data.task_id}`;
+                    newTask.innerHTML = `
+                        <div class="d-flex justify-content-between align-items-center" style="font-size: 20px;">
+                            <div>
+                                <input type="checkbox" name="task_ids" value="${data.task_id}" style="width: 20px; height: 20px; margin-right: 10px;">
+                                <strong id="task-title-${data.task_id}" style="font-size: 27px; font-weight: bold; color: #007bff;">${data.title}</strong>
+                                <br> 
+                                <span id="task-body-${data.task_id}" style="margin-left: 35px; display: inline-block;">${data.body}</span>
+                                ${data.image_url ? `
+                                <div class="mt-2" style="margin-left: 35px;">
+                                    <img src="${data.image_url}" alt="Task Image" class="img-fluid" style="max-width: 500px; border-radius: 5px;">
+                                </div>
+                                ` : ''}
+                                <div>
+                                    <small class="text-muted">
+                                        Time: ${data.date}
+                                    </small>
+                                </div>
+                            </div>
+                            <button type="button" class="btn btn-sm btn-warning" onClick="editTask(${data.task_id})">Edit</button>
+                        </div>
+                        <div class="comments-section mt-3" style="margin-left: 35px;">
+                            <h6>Comments:</h6>
+                            <div class="comments-list" id="comments-${data.task_id}"></div>
+                            <div class="add-comment-form">
+                                <textarea class="form-control comment-input" placeholder="Add a comment..." rows="2"></textarea>
+                                <button class="btn btn-sm btn-primary mt-2" onclick="addComment(${data.task_id})">Add Comment</button>
+                            </div>
+                        </div>
+                    `;
+                    tasksList.insertBefore(newTask, tasksList.firstChild);
+                    document.getElementById("addTaskForm").reset();
+                } else {
+                    alert(data.message);
+                }
+            });
+        }
+    });
+
+    // Hàm editTask để điền dữ liệu của task vào form
+    function editTask(taskId) {
+        const title = document.getElementById(`task-title-${taskId}`).textContent;
+        const body = document.getElementById(`task-body-${taskId}`).textContent;
+        const imageUrl = document.getElementById(`task-${taskId}`).querySelector('.img-fluid')?.src || '';  // Lấy URL hình ảnh hiện tại
+
+        document.getElementById("title").value = title;
+        document.getElementById("body").value = body;
+        document.getElementById("imageUrl").value = imageUrl;  // Đặt URL hình ảnh vào input
+        document.getElementById("taskId").value = taskId;
+        document.getElementById("submitTaskButton").textContent = "Update Task";
+    }
+
+
+    // Xóa ghi chú đã chọn
+    function deleteTasks() {
+        let checkboxes = document.querySelectorAll('input[name="task_ids"]:checked');
+        let taskIds = Array.from(checkboxes).map(cb => cb.value);
+        
+        if (taskIds.length === 0) {
+            alert("Please choose at least one task to delete..");
+            return;
+        }
+
+        fetch("/delete-tasks", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ task_ids: taskIds })
+        }).then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                taskIds.forEach(id => {
+                    let taskElement = document.getElementById(`task-${id}`);
+                    if (taskElement) taskElement.remove();
+                });
+            } else {
+                alert("Error deleting task: " + data.message);
+            }
+        });
+    }
+
+    
+    let allTasks = new Set();
+    let selectedTasks = new Set();
+
+    // Tải tất cả ID task từ server
+    function fetchAllTasks() {
+        fetch("/get-all-tasks")
+            .then(response => response.json())
+            .then(data => {
+                allTasks = new Set(data.task_ids);
+            });
+    }
+
+    // Chọn tất cả task trong trang hiện tại
+    function toggleSelectAllPage() {
+        let checkboxes = document.querySelectorAll('input[name="task_ids"]');
+        let allChecked = Array.from(checkboxes).every(cb => cb.checked);
+        
+        checkboxes.forEach(cb => {
+            cb.checked = !allChecked;
+            if (cb.checked) {
+                selectedTasks.add(cb.value);
+            } else {
+                selectedTasks.delete(cb.value);
+            }
+        });
+    }
+
+    // Chọn tất cả task trên tất cả các trang và xóa
+    function toggleSelectAllGlobal() {
+        if (selectedTasks.size < allTasks.size) {
+            selectedTasks = new Set(allTasks);
+            document.querySelectorAll('input[name="task_ids"]').forEach(cb => cb.checked = true);
+            deleteTasks();
+        } else {
+            selectedTasks.clear();
+            document.querySelectorAll('input[name="task_ids"]').forEach(cb => cb.checked = false);
+        }
+    }
+
+    // Gọi API để tải danh sách tất cả ID task
+    fetchAllTasks();
+
+    function addComment(taskId) {
+        const commentInput = document.querySelector(`#task-${taskId} .comment-input`);
+        const content = commentInput.value.trim();
+        
+        if (!content) {
+            alert('Comment cannot be empty');
+            return;
+        }
+        
+        fetch(`/add-comment/${taskId}`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ content: content })
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const commentsList = document.querySelector(`#comments-${taskId}`);
+                const newComment = document.createElement('div');
+                newComment.className = 'comment';
+                newComment.id = `comment-${data.comment_id}`;
+                newComment.innerHTML = `
+                    <strong>${data.user_name}</strong>
+                    <small class="text-muted">${data.date}</small>
+                    <p>${data.content}</p>
+                    <button class="btn btn-sm btn-danger" onclick="deleteComment(${data.comment_id})">Delete</button>
+                    <hr>
+                `;
+                commentsList.appendChild(newComment);
+                commentInput.value = '';
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while adding the comment');
+        });
+    }
+
+    function deleteComment(commentId) {
+        if (!confirm('Are you sure you want to delete this comment?')) {
+            return;
+        }
+        
+        fetch(`/delete-comment/${commentId}`, {
+            method: 'POST'
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                const commentElement = document.getElementById(`comment-${commentId}`);
+                commentElement.remove();
+            } else {
+                alert(data.message);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('An error occurred while deleting the comment');
+        });
+    }
+
+</script>
+{% endblock %}

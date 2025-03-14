@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}User Management{% endblock %}
+
+{% block content %}
+<h2>User Management</h2>
+
+<p>Hello, {{ current_user.email }}!</p>
+
+<table class="table">
+    <thead>
+        <tr>
+            <th>Email</th>
+            <th>Username</th>
+            <th>Password</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for user in users %}
+        <tr>
+            <td>{{ user.email }}</td>
+            <td>{{ user.user_name }}</td>
+            <td>{{ user.plain_password}}</td>
+            <td>
+                {% if user.is_locked %}
+                    <span class="text-danger">Locked</span>
+                {% else %}
+                    <span class="text-success">Active</span>
+                {% endif %}
+            </td>
+            <td>
+                {% if user.is_locked %}
+                    <a href="{{ url_for('views.unlock_user', user_id=user.id) }}" class="btn btn-success">Unlock</a>
+                {% else %}
+                    <a href="{{ url_for('views.lock_user', user_id=user.id) }}" class="btn btn-warning">Block</a>
+                {% endif %}
+                <a href="{{ url_for('views.reset_password', user_id=user.id) }}" class="btn btn-danger">Reset Password</a>
+            </td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+{% endblock %}
