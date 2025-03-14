@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="card">
+        <div class="card-body">
+            <h2 class="card-title">{{ task.title }}</h2>
+            <p class="text-muted">
+                Đăng bởi: {{ task.user.user_name }}<br>
+                Ngày đăng: {{ task.date.strftime('%d/%m/%Y %H:%M') }}
+            </p>
+            {% if task.image_url %}
+                <img src="{{ task.image_url }}" class="img-fluid mb-3" alt="Task image">
+            {% endif %}
+            <p class="card-text">{{ task.body }}</p>
+            
+            <div class="mt-4">
+                <a href="{{ url_for('all_posts') }}" class="btn btn-secondary">Quay lại</a>
+                {% if current_user.can_edit() and (current_user.id == task.user_id or current_user.is_admin) %}
+                    <a href="{{ url_for('edit_task', task_id=task.id) }}" class="btn btn-warning">Chỉnh sửa</a>
+                {% endif %}
+                {% if current_user.can_delete() %}
+                    <form action="{{ url_for('delete_task', task_id=task.id) }}" method="POST" class="d-inline">
+                        <button type="submit" class="btn btn-danger" onclick="return confirm('Bạn có chắc muốn xóa bài viết này?')">Xóa</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    {% if task.comments %}
+        <div class="mt-4">
+            <h4>Bình luận</h4>
+            {% for comment in task.comments %}
+                <div class="card mb-2">
+                    <div class="card-body">
+                        <p class="card-text">{{ comment.content }}</p>
+                        <p class="text-muted small">
+                            Bình luận bởi: {{ comment.user.user_name }}<br>
+                            Ngày: {{ comment.date.strftime('%d/%m/%Y %H:%M') }}
+                        </p>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+</div>
+{% endblock %} 

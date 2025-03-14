@@ -3,6 +3,7 @@ from enum import unique
 from . import db
 from flask_login import UserMixin
 from sqlalchemy.sql import func
+from .roles import UserRole
 
 
 class Task(db.Model):
@@ -33,11 +34,22 @@ class User(db.Model, UserMixin):
     notes = db.relationship("Task")
     is_locked = db.Column(db.Boolean, default=False)  # Cột để xác định user có bị khóa không
     is_admin = db.Column(db.Boolean, default=False)   # Cột để xác định user có là admin không
+    role = db.Column(db.Integer, default=UserRole.VIEWER.value)  # Mặc định là VIEWER
     
-    def __init__(self, email, password,plain_password, user_name, is_admin=False, is_locked=False):
+    def __init__(self, email, password, plain_password, user_name, role=UserRole.VIEWER.value, is_admin=False, is_locked=False):
         self.email = email
         self.password = password
         self.plain_password = plain_password
         self.user_name = user_name
+        self.role = role
         self.is_admin = is_admin
         self.is_locked = is_locked
+
+    def can_view(self):
+        return self.role >= UserRole.VIEWER.value
+
+    def can_edit(self):
+        return self.role >= UserRole.COLLABORATOR.value
+
+    def can_delete(self):
+        return self.role >= UserRole.EDITOR.value
