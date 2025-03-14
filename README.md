@@ -32,6 +32,6 @@ https://github.com/NgThanhQuyen/ptud-gk-de-1.git
 1. Build blog thành công và các bài viết có hiển thị hành ảnh
 2. Sidebar (Có Thanh Điều Hướng)
 3.Option 3: Phân loại user thông thường thành  
-o Viewer: view only 
-o Collaborator: can edit, can’t delelte 
-o Editor: view, edit, delete permission
+- Viewer: view only
+- Collaborator: can edit, can’t delelte
+- Editor: view, edit, delete permission
